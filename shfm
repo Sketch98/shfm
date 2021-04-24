@@ -200,6 +200,7 @@ status_line() {
     # esc CUD
     # esc SGR 33
     # printf '\r%s' "${others:-empty}"
+    # esc EL0
     # esc CUD
     # esc SGR 0
 
@@ -476,16 +477,21 @@ add_selected() {
     selected="$selected$1/"
 }
 
-toggle_cur() {
-    # return code denotes whether cur is selected after toggling: 0 yes, 1 no
+remove_selected() {
+    # return code denotes whether input was removed: 0 yes, 1 no
+    [ -z "$selected" ] && return 1
     selected="/$selected"
-    beg="${selected%%/$cur/*}"
-    end="${selected##*/$cur/}"
-    [ -z "$beg$end" ] && selected= && return 1
-    [ "$beg" = "$end" ] && selected="$selected$cur/" || selected="$beg/$end"
-    selected="${selected#/}"
-    selected="${selected%/}/"
-    [ "$beg" = "$end" ] && return 0 || return 1
+    beg="${selected%%/"$1"/*}"
+    end="${selected##*/"$1"/}"
+    [ -z "$beg$end" ] && selected= && return 0
+    if [ "$beg" = "$end" ]; then
+        selected="${selected#/}"
+        return 1
+    else
+        selected="$beg/$end"
+        selected="${selected#/}"
+        selected="${selected%/}/"
+    fi
 }
 
 toggle_all(){
@@ -757,7 +763,8 @@ main() {
 
             ' '?)
                 [ "$ltype" = keybinds ] || [ ! -e "$cur" ] && continue
-                toggle_cur && new_select='+' || new_select=' '
+                new_select='+'
+                remove_selected "$cur" && new_select=' ' || selected="$selected$cur/"
                 if [ "$y" = "$#" ]; then
                     redraw_cur_select "$new_select"
                     status_line "$#"
@@ -868,7 +875,10 @@ main() {
                 old=
                 for new in $renames; do
                     [ -z "$old" ] && old="$new" && continue
-                    [ -e "$new" ] || cmd_run mv "$old" "$new"
+                    if [ ! -e "$new" ]; then
+                        cmd_run mv "$old" "$new"
+                        remove_selected "$old" && selected="$selected$new/"
+                    fi
                     old=
                 done
                 unset IFS
