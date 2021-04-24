@@ -147,6 +147,10 @@ list_print() {
         1) [ -e "$1" ] || set -- empty
     esac
 
+    case $1$2$3$# in
+        "...*3") [ -n "$hidden" ] && set -- empty
+    esac
+
     case $hist in
         2) # redraw after cmd run
             shift "$((y > y2 ? y - y2 : 0))"
@@ -630,7 +634,6 @@ main() {
     esc_c=$(printf '\033')
     bs_char=$(printf '\177')
     tab_char=$(printf '\011')
-
     set -- *
     cur=$1
     tab1="$PWD"
@@ -1030,7 +1033,10 @@ main() {
                 redraw "$@"
             ;;
             normal)
-                set -- "$hidden"*
+                [ -n "$hidden" ] && set_term='.* *' || set_term='*'
+                # false positive, behavior intentional
+                # shellcheck disable=2086
+                set -- $set_term
                 get_cur "$y" "$@"
                 redraw "$@"
             ;;
