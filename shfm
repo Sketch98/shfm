@@ -203,20 +203,6 @@ status_line() {
     # esc CUD
     # esc SGR 0
 
-    # printf '\r[ '
-    # ct=1
-    # while true; do
-        # indirect ind "tab$ct"
-        # [ -n "$ind" ] && esc SGR 36 && [ "$ct" -eq "$tab_num" ] && esc SGR 1 7
-        # # printf %s "$ct"
-        # # esc SGR 0
-        # # printf ' '
-        # printf '%s%s[0m ' "$ct" "$esc_c"
-        # [ "$ct" -eq "$num_tabs" ] && break
-        # ct=$((ct + 1))
-    # done
-    # printf ']'
-    # esc CUD
     printf '\r[ '
     [ -n "$tab1" ] && esc SGR 36 && [ "$tab_num" -eq 1 ] && esc SGR 1 7
     printf 1
@@ -317,11 +303,6 @@ line_format() {
 to_tab() {
     old_info="$PWD$hidden$ltype"
     old_pos="$y$y2"
-    # indirect "tab$tab_num" PWD
-    # indirect "hidden$tab_num" hidden
-    # indirect "ltype$tab_num" ltype
-    # indirect "y_$tab_num" y
-    # indirect "y2_$tab_num" y2
     case $tab_num in
         1)
             tab1="$PWD"
@@ -353,15 +334,6 @@ to_tab() {
         ;;
     esac
     tab_num="$1"
-    # indirect ind "tab$tab_num"
-    # if [ -z "$ind" ]; then
-        # indirect "tab$tab_num" PWD
-        # indirect "hidden$tab_num" hidden
-        # indirect "ltype$tab_num" ltype
-        # indirect "y_$tab_num" y
-        # indirect "y2_$tab_num" y2
-    # fi
-    # indirect nwd "tab$tab_num"
     case $1 in
         1)
             [ -z "$tab1" ] && tab1="$PWD" && hidden1="$hidden" && ltype1="$ltype" && y_1=1 && y2_1=1
@@ -380,10 +352,6 @@ to_tab() {
             nwd="$tab4"
         ;;
     esac
-    # indirect hidden "hidden$tab_num"
-    # indirect ltype "ltype$tab_num"
-    # indirect y "y_$tab_num"
-    # indirect y2 "y2_$tab_num"
     case $tab_num in
         1)
             hidden="$hidden1"
@@ -419,8 +387,6 @@ to_tab() {
 try_tabs() {
     unset nwd
     for tab do
-        # indirect ind "tab$tab_num"
-        # [ -z "$ind" ] && continue
         case $tab in
             1) [ -z "$tab1" ] && continue ;;
             2) [ -z "$tab2" ] && continue ;;
@@ -453,14 +419,6 @@ prev_tab() {
     done
     try_tabs $nums
 }
-
-# indirect() {
-	# eval "$1=\"\$$2\""
-# }
-# 
-# indirect_clear() {
-	# eval "$1="
-# }
 
 check_selected() {
     # return code denotes whether input is selected: 0 yes, 1 no
@@ -661,7 +619,6 @@ main() {
     num_tabs=4
     tab_num=1
     selected=
-    # ind=
     switched_tabs=
     set_type=
     
@@ -975,7 +932,6 @@ main() {
                 else
                     old_tab="$tab_num"
                     prev_tab || exit 0
-                    # indirect_clear "tab$old_tab"
                     case $old_tab in
                         1) unset tab1 ;;
                         2) unset tab2 ;;
