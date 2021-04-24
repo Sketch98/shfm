@@ -298,32 +298,33 @@ line_format() {
 
 to_tab() {
     switched_tabs=true
-    # save current tab's info before switching to new tab
-    old_info="$PWD$hidden$ltype"
+    old_info="$PWD$hidden$ltype$dirs_first"
     old_pos="$y$y2"
     indirect "tab$tab_num" PWD
     indirect "hidden$tab_num" hidden
     indirect "ltype$tab_num" ltype
+    indirect "dirs_first$tab_num" dirs_first
     indirect "y_$tab_num" y
     indirect "y2_$tab_num" y2
 
-    # copy current tab's info when creating new tab
     tab_num="$1"
     indirect ind "tab$tab_num"
     if [ -z "$ind" ]; then
         indirect "tab$tab_num" PWD
         indirect "hidden$tab_num" hidden
         indirect "ltype$tab_num" ltype
+        indirect "dirs_first$tab_num" dirs_first
         indirect "y_$tab_num" y
         indirect "y2_$tab_num" y2
     else
         indirect nwd "tab$tab_num"
         indirect hidden "hidden$tab_num"
         indirect ltype "ltype$tab_num"
+        indirect dirs_first "dirs_first$tab_num"
         indirect y "y_$tab_num"
         indirect y2 "y2_$tab_num"
         changed=all
-        [ "$nwd$hidden$ltype" = "$old_info" ] && changed=pos && [ "$y$y2" = "$old_pos" ] && changed=
+        [ "$nwd$hidden$ltype$dirs_first" = "$old_info" ] && changed=pos && [ "$y$y2" = "$old_pos" ] && changed=
         :
     fi
 }
