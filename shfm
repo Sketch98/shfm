@@ -128,7 +128,12 @@ hist_search() {
 
     for file do
         case ${PWD%%/}/$file in
-            "$old_pwd") y=$j y2=$((j >= bottom ? mid : j)) cur=$file
+            "$old_pwd")
+                y=$j
+                min=$((bottom + y - $#))
+                mid=$((mid < min ? min : mid))
+                y2=$((j >= bottom ? mid : j))
+                cur=$file
         esac
 
         j=$((j + 1))
@@ -142,6 +147,7 @@ list_print() {
     i=1
     end=$((bottom + 1))
     mid=$((bottom / 4 < 5 ? 1 : bottom / 4))
+    
 
     case $# in
         0) set -- empty ;;
@@ -663,7 +669,7 @@ main() {
     dirs_first=1
     esc=0
     y=1 y2=1
-    while key=$(dd ibs=1 count=1 2>/dev/null); do
+    while true; do
         case $set_type in
             keybinds)
                 set -- '    j - down' \
@@ -743,6 +749,7 @@ main() {
             redraw "$@"
             set_type=
         fi
+        key=$(dd ibs=1 count=1 2>/dev/null)
         case $key$esc in
             42) esc=4 ;;
             52) esc=5 ;;
@@ -804,7 +811,8 @@ main() {
             \~5) # PGUP
                 esc=0
                 y=$((y - bottom))
-                [ "$y" -lt 1 ] && y=1 && y2=1
+                [ "$y" -lt 1 ] && y=1
+                [ "$y" -lt "$y2" ] && y2="$y"
                 hist=2
                 get_cur "$y" "$@"
                 redraw "$@"
@@ -817,6 +825,9 @@ main() {
                 if [ "$y" -gt "$#" ]; then
                     y="$#"
                     y2=$((bottom > $# ? $# : bottom))
+                else
+                    min=$((bottom + y - $#))
+                    y2=$((y2 < min ? min : y2))
                 fi
                 hist=2
                 get_cur "$y" "$@"
@@ -918,6 +929,8 @@ main() {
             ;;
 
             r?)
+                # false positive, behavior intentional
+                # shellcheck disable=2015
                 [ -z "$ltype" ] && [ "$#" -ge 1 ] || continue
                 for w; do
                     printf '%s\n' "$w"
