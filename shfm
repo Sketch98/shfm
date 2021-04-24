@@ -301,13 +301,14 @@ line_format() {
 }
 
 to_tab() {
-    old_info="$PWD$hidden$ltype"
+    old_info="$PWD$hidden$ltype$dirs_first"
     old_pos="$y$y2"
     case $tab_num in
         1)
             tab1="$PWD"
             hidden1="$hidden"
             ltype1="$ltype"
+            dirs_first1="$dirs_first"
             y_1="$y"
             y2_1="$y2"
         ;;
@@ -315,6 +316,7 @@ to_tab() {
             tab2="$PWD"
             hidden2="$hidden"
             ltype2="$ltype"
+            dirs_first2="$dirs_first"
             y_2="$y"
             y2_2="$y2"
         ;;
@@ -322,6 +324,7 @@ to_tab() {
             tab3="$PWD"
             hidden3="$hidden"
             ltype3="$ltype"
+            dirs_first3="$dirs_first"
             y_3="$y"
             y2_3="$y2"
         ;;
@@ -329,6 +332,7 @@ to_tab() {
             tab4="$PWD"
             hidden4="$hidden"
             ltype4="$ltype"
+            dirs_first4="$dirs_first"
             y_4="$y"
             y2_4="$y2"
         ;;
@@ -336,19 +340,47 @@ to_tab() {
     tab_num="$1"
     case $1 in
         1)
-            [ -z "$tab1" ] && tab1="$PWD" && hidden1="$hidden" && ltype1="$ltype" && y_1=1 && y2_1=1
+            if [ -z "$tab1" ]; then
+                tab1="$PWD"
+                hidden1="$hidden"
+                ltype1="$ltype"
+                dirs_first1="$dirs_first"
+                y_1=1
+                y2_1=1
+            fi
             nwd="$tab1"
         ;;
         2)
-            [ -z "$tab2" ] && tab2="$PWD" && hidden2="$hidden" && ltype2="$ltype" && y_2=1 && y2_2=1
+            if [ -z "$tab2" ]; then
+                tab2="$PWD"
+                hidden2="$hidden"
+                ltype2="$ltype"
+                dirs_first2="$dirs_first"
+                y_2=1
+                y2_2=1
+            fi
             nwd="$tab2"
         ;;
         3)
-            [ -z "$tab3" ] && tab3="$PWD" && hidden3="$hidden" && ltype3="$ltype" && y_3=1 && y2_3=1
+            if [ -z "$tab3" ]; then
+                tab3="$PWD"
+                hidden3="$hidden"
+                ltype3="$ltype"
+                dirs_first3="$dirs_first"
+                y_3=1
+                y2_3=1
+            fi
             nwd="$tab3"
         ;;
         4)
-            [ -z "$tab4" ] && tab4="$PWD" && hidden4="$hidden" && ltype4="$ltype" && y_4=1 && y2_4=1
+            if [ -z "$tab4" ]; then
+                tab4="$PWD"
+                hidden4="$hidden"
+                ltype4="$ltype"
+                dirs_first4="$dirs_first"
+                y_4=1
+                y2_4=1
+            fi
             nwd="$tab4"
         ;;
     esac
@@ -356,31 +388,35 @@ to_tab() {
         1)
             hidden="$hidden1"
             ltype="$ltype1"
+            dirs_first="$dirs_first1"
             y="$y_1"
             y2="$y2_1"
         ;;
         2)
             hidden="$hidden2"
             ltype="$ltype2"
+            dirs_first="$dirs_first2"
             y="$y_2"
             y2="$y2_2"
         ;;
         3)
             hidden="$hidden3"
             ltype="$ltype3"
+            dirs_first="$dirs_first3"
             y="$y_3"
             y2="$y2_3"
         ;;
         4)
             hidden="$hidden4"
             ltype="$ltype4"
+            dirs_first="$dirs_first4"
             y="$y_4"
             y2="$y2_4"
         ;;
     esac
     switched_tabs=true
     changed=all
-    [ "$nwd$hidden$ltype" = "$old_info" ] && changed=pos && [ "$y$y2" = "$old_pos" ] && changed=
+    [ "$nwd$hidden$ltype$dirs_first" = "$old_info" ] && changed=pos && [ "$y$y2" = "$old_pos" ] && changed=
     :
 }
 
