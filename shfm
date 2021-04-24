@@ -107,6 +107,26 @@ cmd_run() {
     hist=2
 }
 
+cmd_select() {
+    stty "$stty"
+    esc DECTCEM h
+    esc DECSTBM
+    esc ED2
+    printf %s "$@"
+    b=
+    for a in $("$@"); do
+        a="${a#$PWD/}"
+        [ -n "$b" ] && b="$b $a" || b="$a"
+        echo "$b"
+        add_selected "$b" && b='' || b="$a"
+    done || :
+    esc ED2
+    esc DECSTBM 1 "$((LINES - 3))"
+    esc DECTCEM l
+    stty -icanon -echo
+    hist=2
+}
+
 file_escape() {
     tmp=$1 safe=
 
@@ -467,7 +487,7 @@ check_selected() {
 }
 
 add_selected() {
-    [ -e "$1" ] || return
+    [ -e "$1" ] || return 1
     IFS='/'
     for s in $selected; do
         [ "$s" = "$1" ] && return
@@ -975,6 +995,11 @@ main() {
                         4) unset tab4 ;;
                     esac
                 fi
+            ;;
+
+            s?)
+                cmd_select 'sxiv' '-boqt' "$PWD"
+                redraw "$@"
             ;;
 
             # handle keys which emit escape sequences
