@@ -612,6 +612,18 @@ redraw_selects() {
     esc CUP "$((y > y2 ? y2 : y))"
 }
 
+populate_dirs_and_files () {
+    dirs=
+    files=
+    IFS=
+    # globbing is intentional, word splitting is disabled.
+    # shellcheck disable=2231
+    for item in $1 $2; do
+        [ -d "$item" ] && dirs="$dirs$item/" || files="$files$item/"
+    done
+    unset IFS
+}
+
 main() {
     set -e
 
@@ -634,7 +646,16 @@ main() {
     esc_c=$(printf '\033')
     bs_char=$(printf '\177')
     tab_char=$(printf '\011')
-    set -- *
+    dirs_first=1
+
+    populate_dirs_and_files '*'
+    IFS='/'
+    set -f
+    # word splitting intentional, globbing is disabled.
+    # shellcheck disable=2086
+    set +f -- $dirs $files
+    unset IFS
+
     cur=$1
     tab1="$PWD"
     num_tabs=4
@@ -821,6 +842,13 @@ main() {
                 [ -z "$ltype" ] && set_type=normal || set_type=search
             ;;
 
+            d?)
+                [ "$ltype" = keybinds ] && continue
+                [ "$dirs_first" -eq 0 ] && dirs_first=1 || dirs_first=0
+                [ -z "$ltype" ] && set_type=normal || set_type=search
+                y=1 y2=1
+            ;;
+
             t?)
                 switch_dir "$trash" || continue
                 set_type=normal
@@ -997,6 +1025,7 @@ main() {
                        '    h - go up level' \
                        '    g - go to top' \
                        '    G - go to bottom' \
+                       '    d - toggle printing directories first' \
                        '    q - quit' \
                        '    : - cd to <input>' \
                        '    / - search current directory <input>*' \
@@ -1020,11 +1049,21 @@ main() {
                 redraw "$@"
             ;;
             search)
-                IFS=
-                # word splitting disabled and globbing intentional
-                # shellcheck disable=2086
-                set -- $ans*
-                unset IFS
+                if [ "$dirs_first" -eq 0 ]; then
+                    IFS=
+                    # false positive, behavior intentional
+                    # shellcheck disable=2086
+                    set -- $ans*
+                    unset IFS
+                else
+                    populate_dirs_and_files "$ans*"
+                    IFS='/'
+                    set -f
+                    # word splitting intentional, globbing is disabled.
+                    # shellcheck disable=2086
+                    set +f -- $dirs $files
+                    unset IFS
+                fi
                 case $1$# in
                     "$ans*1") set -- 'no results'
                 esac
@@ -1033,10 +1072,25 @@ main() {
                 redraw "$@"
             ;;
             normal)
-                [ -n "$hidden" ] && set_term='.* *' || set_term='*'
-                # false positive, behavior intentional
-                # shellcheck disable=2086
-                set -- $set_term
+                if [ "$dirs_first" -eq 0 ]; then
+                    if [ -n "$hidden" ]; then
+                        set -- .* *
+                    else
+                        set -- *
+                    fi
+                else
+                    if [ -n "$hidden" ]; then
+                        populate_dirs_and_files '.*' '*'
+                    else
+                        populate_dirs_and_files '*'
+                    fi
+                    IFS='/'
+                    set -f
+                    # word splitting intentional, globbing is disabled.
+                    # shellcheck disable=2086
+                    set +f -- $dirs $files
+                    unset IFS
+                fi
                 get_cur "$y" "$@"
                 redraw "$@"
             ;;
