@@ -144,11 +144,8 @@ list_print() {
     mid=$((bottom / 4 < 5 ? 1 : bottom / 4))
 
     case $# in
-        1) [ -e "$1" ] || set -- empty
-    esac
-
-    case $1$2$3$# in
-        "...*3") [ -n "$hidden" ] && set -- empty
+        0) set -- empty ;;
+        1) [ -e "$1" ] || [ "$1" = 'no results' ] || set -- empty ;;
     esac
 
     case $hist in
@@ -199,7 +196,7 @@ status_line() {
     # esc EL0
     # esc CUD
     # esc SGR 33
-    # printf '\r%s' "${others:-empty}"
+    # printf '\r%s' "${others:-empty};$dirs;$files"
     # esc EL0
     # esc CUD
     # esc SGR 0
@@ -619,7 +616,7 @@ populate_dirs_and_files () {
     # globbing is intentional, word splitting is disabled.
     # shellcheck disable=2231
     for item in $1 $2; do
-        [ -d "$item" ] && dirs="$dirs$item/" || files="$files$item/"
+        [ -d "$item" ] && dirs="$dirs$item/" || [ ! -e "$item" ] || files="$files$item/"
     done
     unset IFS
 }
@@ -646,24 +643,7 @@ main() {
     esc_c=$(printf '\033')
     bs_char=$(printf '\177')
     tab_char=$(printf '\011')
-    dirs_first=1
 
-    populate_dirs_and_files '*'
-    IFS='/'
-    set -f
-    # word splitting intentional, globbing is disabled.
-    # shellcheck disable=2086
-    set +f -- $dirs $files
-    unset IFS
-
-    cur=$1
-    tab1="$PWD"
-    num_tabs=4
-    tab_num=1
-    selected=
-    switched_tabs=
-    set_type=
-    
     term_resize
     term_setup
 
@@ -674,11 +654,96 @@ main() {
     cmd_run mkdir '-p' "${XDG_CACHE_HOME:=$HOME/.cache}/shfm"
     rename_file="$XDG_CACHE_HOME/shfm/bulk_rename"
 
+    tab1="$PWD"
+    num_tabs=4
+    tab_num=1
+    selected=
+    switched_tabs=
+    set_type=normal
+    dirs_first=1
+    esc=0
     y=1 y2=1
-    redraw "$@"
-
     while key=$(dd ibs=1 count=1 2>/dev/null); do
-        case $key${esc:=0} in
+        case $set_type in
+            keybinds)
+                set -- '    j - down' \
+                       '    k - up' \
+                       '    l - open file or directory' \
+                       '    h - go up level' \
+                       '    g - go to top' \
+                       '    G - go to bottom' \
+                       '    d - toggle printing directories first' \
+                       '    q - quit' \
+                       '    : - cd to <input>' \
+                       '    / - search current directory <input>*' \
+                       '    - - go to last directory' \
+                       '    ~ - go home' \
+                       '    ! - spawn shell' \
+                       '    . - toggle hidden files' \
+                       '    ? - show keybinds' \
+                       '  tab - next tab (or prev tab if shift is held)' \
+                       '  1-4 - move to tab 1-4' \
+                       'space - select (or deselect) current item' \
+                       '    p - copy selected items to current folder' \
+                       '    v - move selected items to current folder' \
+                       '    x - send to trash (permanently delete if in trash)' \
+                       '    t - go to trash' \
+                       '    r - bulk rename' \
+                       '    a - select all' \
+                       '    A - invert selection'
+                ltype=keybinds
+            ;;
+            search)
+                if [ "$dirs_first" -eq 0 ]; then
+                    IFS=
+                    # false positive, behavior intentional
+                    # shellcheck disable=2086
+                    set -- $ans*
+                    unset IFS
+                else
+                    populate_dirs_and_files "$ans*"
+                    IFS='/'
+                    set -f
+                    # word splitting intentional, globbing is disabled.
+                    # shellcheck disable=2086
+                    set +f -- $dirs $files
+                    unset IFS
+                fi
+                case $1$# in
+                    "$ans*1") set -- 'no results'
+                esac
+                ltype="search $PWD/$ans*"
+            ;;
+            normal)
+                if [ "$dirs_first" -eq 0 ]; then
+                    if [ -n "$hidden" ]; then
+                        set -- .* *
+                    else
+                        set -- *
+                    fi
+                else
+                    if [ -n "$hidden" ]; then
+                        populate_dirs_and_files '.*' '*'
+                    else
+                        populate_dirs_and_files '*'
+                    fi
+                    IFS='/'
+                    set -f
+                    # word splitting intentional, globbing is disabled.
+                    # shellcheck disable=2086
+                    set +f -- $dirs $files
+                    unset IFS
+                fi
+            ;;
+        esac
+        if [ -n "$set_type" ]; then
+            [ "$1" = '.' ] && shift
+            [ "$1" = '..' ] && shift
+            get_cur "$y" "$@"
+            redraw "$@"
+            set_type=
+        fi
+        case $key$esc in
             42) esc=4 ;;
             52) esc=5 ;;
             62) esc=6 ;;
@@ -729,6 +794,7 @@ main() {
 
             G?|\~4) # END
                 esc=0
+                [ "$#" -eq 0 ] && continue
                 y=$#
                 y2=$(($# < bottom ? $# : bottom))
                 get_cur "$y" "$@"
@@ -737,12 +803,8 @@ main() {
             
             \~5) # PGUP
                 esc=0
-                [ "$y" -eq 1 ] && continue
                 y=$((y - bottom))
-                if [ "$y" -lt 1 ]; then
-                    y=1
-                    y2=1
-                fi
+                [ "$y" -lt 1 ] && y=1 && y2=1
                 hist=2
                 get_cur "$y" "$@"
                 redraw "$@"
@@ -750,7 +812,7 @@ main() {
             
             \~6) # PGDOWN
                 esc=0
-                [ "$y" -eq "$#" ] && continue
+                [ "$y" -eq "$#" ] || [ "$#" -eq 0 ] && continue
                 y=$((y + bottom))
                 if [ "$y" -gt "$#" ]; then
                     y="$#"
@@ -796,7 +858,7 @@ main() {
 
             x?|P2)
                 esc=0
-                [ "$ltype" = keybinds ] && continue
+                [ "$ltype" = keybinds ] || [ "$#" -eq 0 ] && continue
                 del=
                 [ -z "$ltype$others" ] && [ "$PWD" = "$trash" ] && del=true
                 [ -z "$del" ] && msg="trash 's'elected 'c'ur" || msg="permanently delete 's'elected 'c'ur"
@@ -856,7 +918,7 @@ main() {
             ;;
 
             r?)
-                [ -z "$ltype" ] || continue
+                [ -z "$ltype" ] && [ "$#" -ge 1 ] || continue
                 for w; do
                     printf '%s\n' "$w"
                 done > "$rename_file"
@@ -1019,85 +1081,6 @@ main() {
                 ;;
             esac
         fi
-        case $set_type in
-            keybinds)
-                set -- '    j - down' \
-                       '    k - up' \
-                       '    l - open file or directory' \
-                       '    h - go up level' \
-                       '    g - go to top' \
-                       '    G - go to bottom' \
-                       '    d - toggle printing directories first' \
-                       '    q - quit' \
-                       '    : - cd to <input>' \
-                       '    / - search current directory <input>*' \
-                       '    - - go to last directory' \
-                       '    ~ - go home' \
-                       '    ! - spawn shell' \
-                       '    . - toggle hidden files' \
-                       '    ? - show keybinds' \
-                       '  tab - next tab (or prev tab if shift is held)' \
-                       '  1-4 - move to tab 1-4' \
-                       'space - select (or deselect) current item' \
-                       '    p - copy selected items to current folder' \
-                       '    v - move selected items to current folder' \
-                       '    x - send to trash (permanently delete if in trash)' \
-                       '    t - go to trash' \
-                       '    r - bulk rename' \
-                       '    a - select all' \
-                       '    A - invert selection'
-                ltype=keybinds
-                get_cur "$y" "$@"
-                redraw "$@"
-            ;;
-            search)
-                if [ "$dirs_first" -eq 0 ]; then
-                    IFS=
-                    # false positive, behavior intentional
-                    # shellcheck disable=2086
-                    set -- $ans*
-                    unset IFS
-                else
-                    populate_dirs_and_files "$ans*"
-                    IFS='/'
-                    set -f
-                    # word splitting intentional, globbing is disabled.
-                    # shellcheck disable=2086
-                    set +f -- $dirs $files
-                    unset IFS
-                fi
-                case $1$# in
-                    "$ans*1") set -- 'no results'
-                esac
-                ltype="search $PWD/$ans*"
-                get_cur "$y" "$@"
-                redraw "$@"
-            ;;
-            normal)
-                if [ "$dirs_first" -eq 0 ]; then
-                    if [ -n "$hidden" ]; then
-                        set -- .* *
-                    else
-                        set -- *
-                    fi
-                else
-                    if [ -n "$hidden" ]; then
-                        populate_dirs_and_files '.*' '*'
-                    else
-                        populate_dirs_and_files '*'
-                    fi
-                    IFS='/'
-                    set -f
-                    # word splitting intentional, globbing is disabled.
-                    # shellcheck disable=2086
-                    set +f -- $dirs $files
-                    unset IFS
-                fi
-                get_cur "$y" "$@"
-                redraw "$@"
-            ;;
-        esac
-        set_type=
     done
 }
 
