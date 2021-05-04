@@ -253,21 +253,19 @@ ________________________________________________________________________________
   manager knows which line of the screen the cursor is on.
 
 
-* Multi-byte input is handled by using a 2D case statement.
-
-  (I don't really know what to call this, suggestions appreciated)
+* Multi-byte input is handled by using a state machine.
 
   Rather than using read timeouts (we can't sleep < 1s in POSIX shell anyway)
-  to handle multi-byte input, shfm tracks location within sequences and handles
-  this in a really nice way.
+  to handle multi-byte input, shfm builds multibyte inputs using a state
+  machine implemented with a case statement.
 
-  The case statement matches "$char$esc" with "$esc" being an integer holding
-  position in sequences. To give an example, down arrow emits '\033[B'.
+  The case statement matches "$char$state". To give an example, down arrow emits
+  '\033[B'.
 
-  - When '\033?' is found, the value of 'esc' is set to '1'.
-  - When '[1'    is found, the value of 'esc' is set to '2'.
+  - When '\033?' is found, the state is set to '1'.
+  - When '[1'    is found, the state is set to '2'.
   - When 'B2'    is found, we know it's '\033[B' and handle down arrow.
-  - If input doesn't follow this sequence, 'esc' is reset to '0'.
+  - If an unexpected input is received, the state is reset to '0'.
 
 
 * Filename escaping works via looping over a string char by char.
