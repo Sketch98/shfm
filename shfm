@@ -658,7 +658,7 @@ main() {
 
     cmd_run mkdir '-p' "${trash:=${XDG_DATA_HOME:=$HOME/.local/share}/shfm/trash}"
     cmd_run mkdir '-p' "${XDG_CACHE_HOME:=$HOME/.cache}/shfm"
-    rename_file="$XDG_CACHE_HOME/shfm/bulk_rename"
+    rename_file="$XDG_CACHE_HOME/shfm/bulk_rename$$"
 
     tab1="$PWD"
     num_tabs=4
