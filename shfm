@@ -956,6 +956,7 @@ main() {
                     fi
                     old=
                 done
+                rm "$rename_file"
                 unset IFS
                 set_type=normal
             ;;
