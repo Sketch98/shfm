@@ -147,7 +147,6 @@ list_print() {
     i=1
     end=$((bottom + 1))
     mid=$((bottom / 4 < 5 ? 1 : bottom / 4))
-    
 
     case $# in
         0) set -- empty ;;
@@ -223,7 +222,11 @@ status_line() {
     [ -n "$tab4" ] && esc SGR 36 && [ "$tab_num" -eq 4 ] && esc SGR 1 7
     printf 4
     esc SGR 0
-    printf ' ]'
+    printf ' ] '
+    esc SGR 36
+    esc SGR 1 7
+    printf '%s' "$num_sel"
+    esc SGR 0
     esc CUD
 
     case $USER in
@@ -268,9 +271,9 @@ yes_no() {
     printf %s "$1"
     esc DECTCEM h
     esc EL0
-    
+
     key=$(dd ibs=1 count=1 2>/dev/null)
-    
+
     esc DECRC
     esc DECTCEM l
     status_line "$2"
@@ -305,7 +308,7 @@ line_format() {
 }
 
 to_tab() {
-    old_info="$PWD$hidden$ltype$dirs_first"
+    old_info="$PWD$hidden$ltype$dirs_first$num_sel"
     old_pos="$y$y2"
     case $tab_num in
         1)
@@ -313,6 +316,7 @@ to_tab() {
             hidden1="$hidden"
             ltype1="$ltype"
             dirs_first1="$dirs_first"
+            num_sel1="$num_sel"
             y_1="$y"
             y2_1="$y2"
         ;;
@@ -321,6 +325,7 @@ to_tab() {
             hidden2="$hidden"
             ltype2="$ltype"
             dirs_first2="$dirs_first"
+            num_sel2="$num_sel"
             y_2="$y"
             y2_2="$y2"
         ;;
@@ -329,6 +334,7 @@ to_tab() {
             hidden3="$hidden"
             ltype3="$ltype"
             dirs_first3="$dirs_first"
+            num_sel3="$num_sel"
             y_3="$y"
             y2_3="$y2"
         ;;
@@ -337,6 +343,7 @@ to_tab() {
             hidden4="$hidden"
             ltype4="$ltype"
             dirs_first4="$dirs_first"
+            num_sel4="$num_sel"
             y_4="$y"
             y2_4="$y2"
         ;;
@@ -349,6 +356,7 @@ to_tab() {
                 hidden1="$hidden"
                 ltype1="$ltype"
                 dirs_first1="$dirs_first"
+                num_sel1="$num_sel"
                 y_1=1
                 y2_1=1
             fi
@@ -360,6 +368,7 @@ to_tab() {
                 hidden2="$hidden"
                 ltype2="$ltype"
                 dirs_first2="$dirs_first"
+                num_sel2="$num_sel"
                 y_2=1
                 y2_2=1
             fi
@@ -371,6 +380,7 @@ to_tab() {
                 hidden3="$hidden"
                 ltype3="$ltype"
                 dirs_first3="$dirs_first"
+                num_sel3="$num_sel"
                 y_3=1
                 y2_3=1
             fi
@@ -382,6 +392,7 @@ to_tab() {
                 hidden4="$hidden"
                 ltype4="$ltype"
                 dirs_first4="$dirs_first"
+                num_sel4="$num_sel"
                 y_4=1
                 y2_4=1
             fi
@@ -393,6 +404,7 @@ to_tab() {
             hidden="$hidden1"
             ltype="$ltype1"
             dirs_first="$dirs_first1"
+            num_sel="$num_sel1"
             y="$y_1"
             y2="$y2_1"
         ;;
@@ -400,6 +412,7 @@ to_tab() {
             hidden="$hidden2"
             ltype="$ltype2"
             dirs_first="$dirs_first2"
+            num_sel="$num_sel2"
             y="$y_2"
             y2="$y2_2"
         ;;
@@ -407,6 +420,7 @@ to_tab() {
             hidden="$hidden3"
             ltype="$ltype3"
             dirs_first="$dirs_first3"
+            num_sel="$num_sel3"
             y="$y_3"
             y2="$y2_3"
         ;;
@@ -414,13 +428,14 @@ to_tab() {
             hidden="$hidden4"
             ltype="$ltype4"
             dirs_first="$dirs_first4"
+            num_sel="$num_sel4"
             y="$y_4"
             y2="$y2_4"
         ;;
     esac
     switched_tabs=true
     changed=all
-    [ "$nwd$hidden$ltype$dirs_first" = "$old_info" ] && changed=pos && [ "$y$y2" = "$old_pos" ] && changed=
+    [ "$nwd$hidden$ltype$dirs_first$num_sel" = "$old_info" ] && changed=pos && [ "$y$y2" = "$old_pos" ] && changed=
     :
 }
 
@@ -474,10 +489,11 @@ add_selected() {
     [ -e "$1" ] || return
     IFS='/'
     for s in $selected; do
-        [ "$s" = "$1" ] && return
+        [ "$s" = "$1" ] && unset IFS && return
     done
     unset IFS
     selected="$selected$1/"
+    num_sel=$((num_sel + 1))
 }
 
 remove_selected() {
@@ -486,8 +502,9 @@ remove_selected() {
     selected="/$selected"
     beg="${selected%%/"$1"/*}"
     end="${selected##*/"$1"/}"
-    [ -z "$beg$end" ] && selected= && return 0
-    if [ "$beg" = "$end" ]; then
+    if [ -z "$beg$end" ]; then
+        selected=
+    elif [ "$beg" = "$end" ]; then
         selected="${selected#/}"
         return 1
     else
@@ -495,6 +512,7 @@ remove_selected() {
         selected="${selected#/}"
         selected="${selected%/}/"
     fi
+    num_sel=$((num_sel - 1))
 }
 
 toggle_all(){
@@ -509,6 +527,7 @@ toggle_all(){
     done
     unset IFS
     selected="$new_selected"
+    num_sel=$(($# - num_sel))
     redraw "$@"
 }
 
@@ -518,11 +537,17 @@ filter_inpwd() {
     fn=
     inpwd=
     notinpwd=
+    num_sel=0
     set -- "$1//"
     for piece in $1; do
         if [ -z "$piece" ]; then
             [ -z "$fn" ] && continue
-            [ "$PWD" = "$cwd" ] && inpwd="$inpwd$fn/" || notinpwd="$notinpwd$cwd/$fn/"
+            if [ "$PWD" = "$cwd" ]; then
+                inpwd="$inpwd$fn/"
+                num_sel=$((num_sel + 1))
+            else
+                notinpwd="$notinpwd$cwd/$fn/"
+            fi
             cwd=
             fn=
         elif [ -n "$fn" ]; then
@@ -667,6 +692,7 @@ main() {
     switched_tabs=
     set_type=normal
     dirs_first=1
+    num_sel=0
     state=0
     y=1 y2=1
     while true; do
@@ -807,7 +833,7 @@ main() {
                 get_cur "$y" "$@"
                 redraw "$@"
             ;;
-            
+
             \~5) # PGUP
                 state=0
                 y=$((y - bottom))
@@ -817,7 +843,7 @@ main() {
                 get_cur "$y" "$@"
                 redraw "$@"
             ;;
-            
+
             \~6) # PGDOWN
                 state=0
                 [ "$y" -eq "$#" ] || [ "$#" -eq 0 ] && continue
@@ -837,7 +863,12 @@ main() {
             ' '?)
                 [ "$ltype" = keybinds ] || [ ! -e "$cur" ] && continue
                 new_select='+'
-                remove_selected "$cur" && new_select=' ' || selected="$selected$cur/"
+                if remove_selected "$cur"; then
+                    new_select=' '
+                else
+                    selected="$selected$cur/"
+                    num_sel=$((num_sel + 1))
+                fi
                 if [ "$y" = "$#" ]; then
                     redraw_cur_select "$new_select"
                     status_line "$#"
@@ -892,6 +923,7 @@ main() {
                             set +f
                             unset IFS
                             selected=
+                            num_sel=0
                         fi
                         [ -n "$others" ] && others_op v "$trash"
                     ;;
@@ -900,6 +932,7 @@ main() {
                         # false positive, behavior intentional
                         # shellcheck disable=2015
                         [ -e "$cur" ] && yes_no "$msg" "$#" || continue
+                        remove_selected "$cur" || :
                         if [ -z "$del" ]; then
                             cmd_run mv "$cur" "$trash"
                         else
